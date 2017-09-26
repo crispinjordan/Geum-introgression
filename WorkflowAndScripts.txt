@@ -1,0 +1,791 @@
+#This file outlines the workflow used to analyze data in the paper, "Maintaining their genetic distance; limited gene flow between widely hybridising species of Geum with contrasting mating systems"
+
+
+##########
+##########
+##########
+#Begin by filtering data for paralogs
+##########
+##########
+##########
+
+#Perform filtering for Het and F_is based upon UK-samples, only - this is most appropriate if we wish to say that each species is one large population
+
+#Begin by running STACKS' populations using UK samples only:
+
+populations -P /PATH_TO_FILE -M ~/PATH_TO_FILE/popmap.txt -b 1 -r 1.0 -p 2 -t 8 --ordered_export
+
+#Now, create a white-list of filtered loci (based on Het and F_is for both species) - use this script:  spp_snps_POPULATIONS_approach_PE_aligned_V131_CountPolymorphType.py
+#This creates the white-list called:  W_whitelist_HetAndFis_UK_SamplesFILTERED_ANALYSES_NoM.txt
+
+
+#Now, use the white-list to generate STACKS output for UK and non-UK pure population samples - i.e., a population map that includes allopatric Geum samples from both UK and Europe:
+
+populations -P /PATH_TO_DATA -M ~/PATH_TO_DATA/popmap_Allopatric_UK_and_Europe.txt -b 1 -r 1.0 -p 2 -t 8 --ordered_export -W /PATH_TO_DATA/W_whitelist_HetAndFis_UK_SamplesFILTERED_ANALYSES_NoM.txt
+
+#Now, check for correct filtering - use:  Check_Filter_Het_Fis.py
+
+#We found that our filtering based on the UK samples did a good job when we also includes European samples - some loci has slighltly negative Fis (mostly, -0.0385, a )
+
+#Overall, we find 1 contig with observed heterozygosity above 0.5 - this same contig has the most negative F_is (-0.1250).  Otherwise, the only signal of paralogs comes from mildly negative F_is (-0.0385), which can occur by chance.  Overall, we have 54 SNPs with this sort of problem, out of 4391:
+cat batch_1.sumstats.tsv | wc -l
+4391
+#... this suggests a small source of error from paralogs (54/4391 = 0.012297882, or about 1%)
+
+
+#Now, get the distribution of polymorphism - we this script again:  spp_snps_POPULATIONS_approach_PE_aligned_V131_CountPolymorphType.py
+#This yields output such as:
+
+The number of possible homoelogs based on heterozygosity and Fis equals:  36
+The number of troublesome contigs is:  36
+the number of loci on the whitelist equals:  641
+the number of contigs equals:  421
+
+
+The number of alternately fixed alleles (orientation 1) equals:488
+The number of alternately fixed alleles (orientation 2) equals:0
+
+The number of cases where rivale is polymorphic and urbanum is fixed for 1 rivale allele (orientation 1) equals:1283
+The number of cases where rivale is polymorphic and urbanum is fixed for 1 rivale allele (orientation 2) equals:51
+
+The number of cases where urbanum is polymorphic and rivale is fixed for 1 urbanum allele (orientation 1) equals:338
+The number of cases where urbanum is polymorphic and rivale is fixed for 1 urbanum allele (orientation 2) equals:0
+
+The number of cases where both species are polymorphic equals:34
+
+The number of cases considered:2194
+
+
+#Now, create two files that allow more file-detaield genotyping than typically provided by STACKS' populations module
+
+#Run the script spp_snps_POPULATIONS_approach_PE_aligned_V131.py using batch_1.sumstats.tsv as the entire (Now FILTERED) snp data file.
+	This produced the files:
+		- Whitelist_M6_PE_CorrAltV135_Filtered_NoM.txt
+		- DictInfo_M6_PE_CorrAltV135_Filtered_NoM.txt
+
+#Now we have 220 species-specific SNPs to genotype the Berwickshire samples
+
+
+#I now plot the frequency of individuals with a given % of their genome that is rivale alleles.  This uses the script:  spp_snps_POPULATIONS_approach_PE_aligned_V131_AssaySamplesCATALOG.py.  This uses:
+	-the population map to: popmap_BerwickshireSampleListByIndiviudalTypePlusTruePure_4CatPlusTrue.txt
+		...this accounts for changing sample 10D (listed as '100' due to a typo by Edin Genomics) from being urb_pair to riv_pair (this was based upon Richard's morphology data)
+	- the list of species-specific snps to be analysed:  /home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/DictInfo_M6_PE_CorrAltV135_Filtered_NoM.txt
+	- the xxxx.matches.tsv output from STACKS
+	- the xxxx.snsps.tsv output from STACKS
+
+#It then produces the output:
+a)  /home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/GenotypeProportionsPerIndividual_Filtered_NoM.txt
+b)  /home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/GenotypePerLocusPerIndividual_Filtered_NoM.txt
+
+#(b) was used to describe genotypes of candidate hydrids
+
+
+#Now, examine the output of GenotypePerLocusPerIndividual_Filtered_NoM.txt to see whether there are any loci that are *NOT* fixed between rivale and urbanum:
+
+#Do the fillowing in R:
+findSnps <- read.table("PATH_TO_DATA/GenotypePerLocusPerIndividual_Filtered_NoM.txt", header=TRUE, sep="\t")
+urbTrueSamples <- findSnps[which(findSnps$sample_type == 'urb_true'),]
+notFixed <- urbTrueSamples[which(urbTrueSamples$rivale_allele != '-'),]
+
+            sample sample_type           contig catalogLocus column
+21315 sample_RAD40    urb_true jcf7180009723396        14782     73
+22121 sample_RAD25    urb_true jcf7180009658025         6004     18
+22266 sample_RAD25    urb_true jcf7180009743741        24239     28
+23268 sample_RAD29    urb_true jcf7180009723396        14782     73
+23376 sample_RAD27    urb_true jcf7180009578963           38     43
+23391 sample_RAD27    urb_true jcf7180009635346         2200      8
+      rivale_allele urbanum_allele  X
+21315             C              - NA
+22121             T              - NA
+22266             T              - NA
+23268             C              - NA
+23376             C              - NA
+23391             C              - NA
+
+So, we have 5 loci (locus 14782 is present twice) that are not fixed.
+
+#Need to remove them from the file, DictInfo_M6_PE_CorrAltV135_Filtered_NoM.txt
+#We will call this new file: DictInfo_M6_PE_CorrAltV135_Filtered_NoM_Fixed.txt
+
+#Now, run spp_snps_POPULATIONS_approach_PE_aligned_V131_AssaySamplesCATALOG.py again, but this time using an updates DictInfo_M6_PE_CorrAltV135_Filtered_NoM_Fixed.txt
+
+
+
+
+#Now, plot the data, using R:
+propRivFilt_NoM <- read.table("PATH_TO_DATA/GenotypeProportionsPerIndividual_Filtered_NoM.txt", header=TRUE, sep="\t")
+
+#Minimum 161 loci genotypes, with a mean of 208 loci
+
+> min(propRivFilt_NoM$loci_genotyped)
+[1] 161
+> max(propRivFilt_NoM$loci_genotyped)
+[1] 215
+> mean(propRivFilt_NoM$loci_genotyped)
+[1] 208.9254
+
+
+#Check that the total number of alleles equals twice the number of loci scored:
+propRivFilt_NoM$totAlleles <- propRivFilt_NoM$rivale_allele_count + propRivFilt_NoM$urbanum_allele_count
+propRivFilt_NoM$expectedNum <- 2*(propRivFilt_NoM$loci_genotyped)
+propRivFilt_NoM$diffAlleles <- propRivFilt_NoM$totAlleles - propRivFilt_NoM$expectedNum
+#Excellent - all adds up correctly.
+
+#Create a new variable that equals the proportion of alleles that are from rivale:
+propRivFilt_NoM$propRivaleAlleles <- (propRivFilt_NoM$rivale_allele_count / (propRivFilt_NoM$rivale_allele_count+propRivFilt_NoM$urbanum_allele_count))
+
+# Remove individual 13A, which is supposedly a rivale but has 100% urbanum genotype and Richard realized represents human error, and 
+
+# Sample 13A is observation 17, so remove this value:
+propRivFilt_NoM_No13A <- propRivFilt_NoM[-17,]
+
+riv<-propRivFilt_NoM_No13A[which(propRivFilt_NoM_No13A$sample_type=='riv_h' | propRivFilt_NoM_No13A$sample_type=='riv_pure'),]
+#n=50
+urb<-propRivFilt_NoM_No13A[which(propRivFilt_NoM_No13A$sample_type=='urb_h' | propRivFilt_NoM_No13A$sample_type=='urb_pure'),]
+#n=47
+
+#Now, make the plot:
+pdf("/home/crispinjordan/Desktop/Berwichskire_PureAndHybrid_FILTERED_NoM_31May2016_2Panels_215Markers.pdf", height = 3.5, width = 8)
+par(mfrow=c(1,2),omi=c(0.5,0.5,0.1,0.1),mar=c(3,3,0.5,0.5),cex.axis=0.9)
+
+hist(riv$propRivaleAlleles,breaks=(seq(from=0,to=1,by=0.01)),xlim=c(0,1),ylim=c(0,50),main="",xlab="", ylab="")
+text(0.45,45,"G. rivale,           ",cex=0.9,font=3)
+text(0.55,45," n=50",cex=0.9)
+mtext("Proportion of alleles from G. rivale", side=1, line=2, cex = 0.9)
+
+hist(urb$propRivaleAlleles,breaks=(seq(from=0,to=1,by=0.01)),xlim=c(0,1),ylim=c(0,50),main="",xlab="",ylab="")
+text(0.5,45,"G. urbanum,            ",cex=0.9,font=3)
+text(0.5,45,"                  n=47",cex=0.9)
+mtext("Proportion of alleles from G. rivale", side=1, line=2, cex = 0.9)
+
+dev.off()
+
+
+########################################
+#Now, make a plot of the distribution of the number of loci genotyped:
+
+#make dataframe with only 'non-true' samples:
+
+rivORurb <- propRivFilt_NoM_No13A[which(propRivFilt_NoM_No13A$sample_type=='riv_h' | propRivFilt_NoM_No13A$sample_type=='riv_pure' | propRivFilt_NoM_No13A$sample_type=='urb_h' | propRivFilt_NoM_No13A$sample_type=='urb_pure'),]
+
+
+pdf("/home/crispinjordan/Desktop/Berwichskire_NumberLociGenotyped_NoM_31May2016_No_13A_215Loci.pdf", height = 7, width = 8)
+par(omi=c(1,1,0.1,0.1),mar=c(5,5,1,1),cex.axis=1.1)
+
+hist(rivORurb$loci_genotyped,breaks=(seq(from=160,to=215,by=5)),xlim=c(160,215),ylim=c(0,50),main="",xlab="Number of loci genotyped",ylab="Frequency",cex.lab=1.3)
+
+dev.off()
+
+################################
+###################################################
+###################################################
+
+#Now that I have plotted the data for introgression, I will determine Pi, F_st, and F_is for the filtered data.  
+#The main item to note here is that, if one wishes to analyse a single SNP per contig, use the script:  WhiteListMaker_OneSNP_PerContig.py
+#For example, this is useful to create a list of 'independent' SNPs for the fastSTRUCTURE analysis
+
+#NOTE that, one needs to estimate F_is using one population at a time, because STACKS does not calculate it properly...  If STACKS is given a populationmap with multiple populations, and one population is fixed at a locus (that is, say, polymorphic in another population in the map), STACKS will assign an Fis = 0 for that locus in the monomorphic population, falsely decreasing the estimate of Fis.  Therefore, when calculating Fis, analyze samples from one poplation at a time.
+
+
+#########################################################################################################
+#########################################################################################################
+#########################################################################################################
+#Now, do fastSTRUCTURE analysis.
+#use loci filtered for paralogs, but no additional filters
+#To only include 1 SNP per contig, create list of SNPs to use as the Whitelist in STACKS' population module using:   WhiteListMaker_OneSNP_PerContig.py
+
+
+#EXAMPLE
+#Use the same population map as I used to genotype individuals with species-spefic markers - this will make it easier to compare results between the species-specific SNPs and STRUCTURE
+#In order to create a list of SNPs where we only have one SNP per contig, we can use the sumstats.tsv file in ONESNP:  WhiteListMaker_OneSNP_PerContig.py.  This creates the Whitelist, Whitelist_FILTERED_STRUCTURE.txt
+
+populations -P /PATH_TO_DATA -M /PATH_TO_DATA/popmap_BerwickshireSampleListByIndiviudalTypePlusTruePure_4CatPlusTrue_No13A.txt -b 1 -t 15 --structure --write_single_snp --ordered_export -W /PATH_TO_DATA/Whitelist_FILTERED_STRUCTURE.txt
+
+#The whitelist contains 492 markers, each on a different contig
+
+
+#Do this analysis but having replaced the 0's for -9's using the sript fastSTRUCTURE_File_Chance_Minus9_to_Zero.py 
+#The output of this file is calles, batch_1.structure2.edited.str
+
+
+#example...
+python structure.py -K 2 --input=/PATH_TO_DATA/batch_1.structure2.edited --output=/PATH_TO_DATA/EditedForZeros --format=str
+
+python chooseK.py --input=/PATH_TO_DATA/EditedForZeros
+
+#...yields info on best models
+
+
+
+#Now, plot how these results compare to introgression estimates based on species-speficic SNPs:
+
+#Using R, as above:
+propRivFilt_NoM <- read.table("/PATH_TO_DATA/GenotypeProportionsPerIndividual_Filtered_NoM.txt", header=TRUE, sep="\t")
+> min(propRivFilt_NoM$loci_genotyped)
+[1] 161
+> max(propRivFilt_NoM$loci_genotyped)
+[1] 215
+> mean(propRivFilt_NoM$loci_genotyped)
+[1] 208.9254
+
+
+#Now, remove the sample 13A:
+
+propRivFilt_NoM_No13A <- propRivFilt_NoM[-17,]
+
+#Check that the total number of alleles equals twice the number of loci scored:
+propRivFilt_NoM_No13A$totAlleles <- propRivFilt_NoM_No13A$rivale_allele_count + propRivFilt_NoM_No13A$urbanum_allele_count
+propRivFilt_NoM_No13A$expectedNum <- 2*(propRivFilt_NoM_No13A$loci_genotyped)
+propRivFilt_NoM_No13A$diffAlleles <- propRivFilt_NoM_No13A$totAlleles - propRivFilt_NoM_No13A$expectedNum
+#Excellent - all adds up correctly.
+
+#Create a new variable that equals the proportion of alleles that are from rivale:
+propRivFilt_NoM_No13A$propRivaleAlleles <- (propRivFilt_NoM_No13A$rivale_allele_count / (propRivFilt_NoM_No13A$rivale_allele_count+propRivFilt_NoM_No13A$urbanum_allele_count))
+
+
+#Now, I need to merge this file with the output from fastSTRUCTURE.
+#Unfortunately, the output from structure is in a different order than the estimates from species-specific markers.  To address this, I'll:
+
+#1) pull the column of same names from the structure file:
+awk -F "\t" '{print $1}' batch_1.structure2.edited.str > structureSamples.txt
+#2) the output repeats every file name (the STRUCTURE file has 2 lines for every sample).  So, to extract only every 2nd line, use:
+sed -n '0~2p' structureSamples.txt > structureSamplesFinal.txt
+
+#Now, read in the sample names to R:
+sampleNames <- read.table("/PATH_TO_DATA/structureSamplesFinal.txt",header=FALSE,sep='\t')
+
+#Now, read fastStructure output:
+structureData<-read.table("/PATH_TO_DATA/EditedForZeros.2.meanQ",header=FALSE,sep = " ")
+structureAll <- cbind(sampleNames,structureData)
+#re-name the columns:
+names(structureAll)[1] <- "Sample"
+#Check before-hand which column refers to rivale vs urbanum
+names(structureAll)[4] <- "StructureRivale"
+
+#Now, I will create a column that numbers the order of the rows.  This will later alow me to create a list of sample types that to make the fastSRRUCTURE plot:
+
+structureAll$Observation <- seq(1,133,1)
+
+#Now, merge the datasets by Sample:
+CompareMeasures <- merge(structureAll,propRivFilt_NoM_No13A,by="Sample")
+
+#Make the plot:
+pdf("/home/crispinjordan/Desktop/ComparingSNPsVsSTRUCTURE_NoM_NoFiltersAndManyMissingValues_NoSample13A_K2_PriorSimple_215Loci.pdf", height = 7, width = 7)
+plot(propRivaleAlleles ~ StructureRivale,data=CompareMeasures,xlab = "fastSTRUCTURE - Q value",ylab = "Proportion G. rivale alleles - Species markers", cex.lab=1.4,cex.axis=1.2)
+abline(a=0,b=1,col = "lightgray", lty = 3, lwd = 3)
+dev.off()
+
+
+#Now make STRUCTURE plot.
+#Note that this command uses some files that are stored in the folder with high filtering (no missing values):
+
+#I now need to make a popfile for the STRUCTURE plot.  To do this, I'll first sort the merged dataframe, above, by the Observation number:
+sortedGeum <- CompareMeasures[order(CompareMeasures$Observation),]
+#Now, I need to re-name the categories:
+
+write.table(sortedGeum, "/PATH_TO_DATA/sortedGeum.csv", sep=",") 
+
+#I opened the file in LibreOffice, and manually re-named the sample types into a new column, which I just copied and pasted into the file now named, fastSTRUCTUREpopmap.txt
+
+python distruct.py -K 2 --input=/PATH_TO_DATA/EditedForZeros --output=/PATH_TO_DATA/NoFilterForMissingValues_No13A_SimplePrior_K2_distruct.svg --popfile=/PATH_TO_DATA/fastSTRUCTUREpopmap.txt --title=""
+
+########################################################
+########################################################
+
+#Calculating dxy:
+
+
+#Dxy:  If we require that loci be present in all individuals, then we end up sampling very different portions of the genome.  For true samples, we sample 430 scaffolds, and for Berwickshire we sample 234
+# samples; i.e., about 1/2 of loci in pure samples are not present in the berwickshire samples.
+#So, in order to use the same loci/scaffolds, and also calculate allele frequencies with sufficient numbers of individuals, I do the following:
+a) calculate dxy for true samples, requiring that loci be present in all individuals;  this means that at least 12 individuals are used to calculate dxy (remember that only really 10 independent samples)
+for G. urbanum, too; i.e., 10 populations
+b) make a list of the loci/nucleotides that were used for the true populations
+c) run analysis for berwickshire using list of loci/nucleotides in (b), and require that min. of 12 samples have each locus per population
+
+
+#First, calculate dxy for true samples (no hybrids, no European), and require that locus be present in all samples:
+
+populations -P /home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt -M /home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/popmap_BerwickshireSampleListByIndiviudalType_2CatPlusTrue_No13A_Less2Europe_OnlyTrueUK.txt -b 1 -p 2 -r 1.0 -t 15 --ordered_export -W /home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/W_whitelist_HetAndFis_UK_SamplesFILTERED_ANALYSES_NoM.txt
+
+#Use D_XY_Calculations_By_Scaffold.py to calculate dxy per scaffold
+
+#Using R:
+dxy <- read.table("/home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/Dxy_pure_FullFilter.txt",header=TRUE,sep="\t")
+
+> mean(dxy$Mean_Dxy)
+[1] 0.01138393
+> var(dxy$Mean_Dxy)
+[1] 0.000101313
+> nrow(dxy)
+[1] 430
+> sqrt(var(dxy$Mean_Dxy))/sqrt(nrow(dxy))
+[1] 0.0004853985
+
+The mean +/- SE for True UK samples = 0.01138393 +/- 0.0004853985, when we require all loci to be present in all samples
+
+#Now, create a list of loci/nucleotides to use from batch.1.sumstats.tsv:  Use:  ProduceListOfSNPsForWhitelist.py
+
+#Now, run for Berwiskshire samples with this list of loci, and require at least 27% of samples in a population have the locus in question (0.27*45 = 12.15 individuals; 45 is the number of G. urbanum samples in Berwickshire, after removing the hybrids):
+
+populations -P /PATH_TO_DATA -M /PATH_TO_DATA/popmap_BerwickshireSampleListByIndiviudalType_No13A_Less4hybridsLess4Europe_OnlyBerwickshire.txt -b 1 -p 2 -r 0.27 -t 15 --ordered_export -W /PATH_TO_DATA/Whitelist_SNPsFromTrueSamples.txt
+
+dxy <- read.table("/home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/Dxy_berwickshire_Min12Indiv.txt",header=TRUE,sep="\t")
+
+> mean(dxy$Mean_Dxy)
+[1] 0.01115471
+> var(dxy$Mean_Dxy)
+[1] 9.126214e-05
+> nrow(dxy)
+[1] 418
+> sqrt(var(dxy$Mean_Dxy))/sqrt(nrow(dxy))
+[1] 0.0004672585
+
+The mean +/- SE for dxy of Berwickshire samples is:  0.01115471 +/- 0.0004672585
+
+#OK... To make sure that the Berwickshire and True sampes truly use the same loci, I now use ProduceListOfSNPsForWhitelist.py to create a list of SNPs to re-run the analysis on the True samples:
+#ProduceListOfSNPsForWhitelist.py
+
+#Now, run for ALlopatric samples again, but with this new list of SNPs:
+
+populations -P /home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt -M /home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/popmap_BerwickshireSampleListByIndiviudalType_2CatPlusTrue_No13A_Less2Europe_OnlyTrueUK.txt -b 1 -p 2 -r 1.0 -t 15 --ordered_export -W /home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/Whitelist_SNPsForTrueSamplesFromBerwickshire.txt
+
+dxy <- read.table("/home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/Dxy_True_Revised.txt",header=TRUE,sep="\t")
+
+> mean(dxy$Mean_Dxy)
+[1] 0.01149231
+> var(dxy$Mean_Dxy)
+[1] 9.552876e-05
+> nrow(dxy)
+[1] 418
+> sqrt(var(dxy$Mean_Dxy))/sqrt(nrow(dxy))
+[1] 0.0004780562
+
+
+
+
+
+############################################################################################
+#If we wish to obtain genotype information on hybrids using all filtered SNPs (not only 1 per scaffold), do the following:
+
+spp_snps_POPULATIONS_approach_PE_aligned_V131_MultipleSNPsPerScaffold.py
+
+#Now, I ran spp_snps_POPULATIONS_approach_PE_aligned_V131_MultipleSNPsPerScaffold.py using batch_1.sumstats.tsv as the entire (Now FILTERED) snp data file.
+	This produced the files:
+		- Whitelist_M6_PE_CorrAltV135_Filtered_NoM_MultipleSNPsPerScaffold_April28.txt
+		- DictInfo_M6_PE_CorrAltV135_Filtered_NoM_MultipleSNPsPerScaffold_April28.txt
+
+#Now we have 488 species-specific SNPs, allowing multiple SNPs per scaffold
+
+#I now plot the frequency of individuals with a given % of their genome that is rivale alleles.  This uses the code: spp_snps_POPULATIONS_approach_PE_aligned_V131_AssaySamplesCATALOG.py, as above.
+
+#Now, examine the output of GenotypePerLocusPerIndividual_Filtered_NoM.txt file, as above:
+
+#In R:
+findSnps <- read.table("/home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/GenotypePerLocusPerIndividual_Filtered_NoM_MultipleSNPS_PerScaffold.txt", header=TRUE, sep="\t")
+
+urbTrueSamples <- findSnps[which(findSnps$sample_type == 'urb_true'),]
+
+notFixedUrb <- urbTrueSamples[which(urbTrueSamples$rivale_allele != '-'),]
+
+rivTrueSamples <- findSnps[which(findSnps$sample_type == 'riv_true'),]
+
+notFixedRiv <- rivTrueSamples[which(rivTrueSamples$urbanum_allele != '-'),]
+
+notFixedUrb
+
+            sample sample_type           contig catalogLocus column
+28626 sample_RAD40    urb_true jcf7180009723396        14782     73
+29710 sample_RAD25    urb_true jcf7180009658025         6004     18
+29902 sample_RAD25    urb_true jcf7180009743741        24239     28
+31247 sample_RAD29    urb_true jcf7180009723396        14782     73
+31397 sample_RAD27    urb_true jcf7180009578963           39     11
+      rivale_allele urbanum_allele  X
+28626             C              - NA
+29710             T              - NA
+29902             T              - NA
+31247             C              - NA
+31397             G              - NA
+
+
+# Ran spp_snps_POPULATIONS_approach_PE_aligned_V131_AssaySamplesCATALOG.py again, but using: DictInfo_M6_PE_CorrAltV135_Filtered_NoM_MultipleSNPsPerScaffold_April28_Less5Markers.txt
+
+# Check that the correct number of markers were used:  
+
+R
+propRivFilt_NoM_check <- read.table("/home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/GenotypeProportionsPerIndividual_Filtered_NoM_MultipleSNPS_PerScaffold.txt", header=TRUE, sep="\t")
+
+propRivFilt_NoM_check[1:5,]
+         Sample sample_type loci_genotyped rivale_allele_count
+1 sample_46-24A       riv_h            287                 574
+2 sample_42-20A    urb_pure            291                   2
+3 sample_43-21A    riv_pure            291                 580
+4 sample_44-22A    riv_pure            282                 562
+5 sample_45-23A    urb_pure            289                   2
+  urbanum_allele_count Third_allele_at_a_locus No_Heterozygous_loci
+1                    0                       2                    0
+2                  580                       0                    0
+3                    2                       0                    2
+4                    2                       0                    2
+5                  576                       0                    0
+> max(propRivFilt_NoM_check$loci_genotyped)
+[1] 292
+
+#Yes.
+#Therefore the output from spp_snps_POPULATIONS_approach_PE_aligned_V131_AssaySamplesCATALOG.py can be used to examine the genotypes of hybrids in detail, using >1 SNP per scaffold
+
+
+
+
+
+########################################
+#f3 analysis:
+
+#Use the population maps:
+popmap_BerwickshireSampleListPureRivaleUrbReducedUrbanum_UK_Only_Berwick_Rivale.txt
+popmap_BerwickshireSampleListPureRivaleUrbReducedUrbanum_UK_Only_Berwick_Urbanum.txt
+
+
+#calculate f3 for Ber. rivale:
+#This analysis:
+#a) excludes hybrids
+#b) excludes European samples
+#c) requires that alleles be present in at least 1/2 of the samples from all populations.  But, we know that they are present in all the allopatric samples (NOTE:  we're only using 10 of the UK urbanum), because we required that loci be present in all alloparic UK rivale and UK urbanum samples to create the white-list; therefore, we'll analyse alleles that are present in all allopatric samples.  But, -r 0.5 will require that at least 1/2 of the Berwickshire samples have a locus
+
+populations -P /PATH_TO_DATA -M ~/PATH_TO_DATA/popmap_BerwickshireSampleListPureRivaleUrbReducedUrbanum_UK_Only_Berwick_Rivale.txt -b 1 -r 0.5 -p 3 -t 8 --ordered_export -W /PATH_TO_DATA/W_whitelist_HetAndFis_UK_SamplesFILTERED_ANALYSES_NoM.txt
+
+Writing 837 loci to summary statistics file, '/PATH_TO_DATA/batch_1.sumstats.tsv'
+#Also, 3945 SNPs
+
+#I used the script, F3_rivale.py, to organize the data.
+
+#Now, use R to calculate f3:
+
+#Exclude SNPs that are variable in Berwickshire but not the allopatric samples:
+f3_riv_cl <- read.table("/PATH_TO_DATA/f3_rivale_clean.txt",header=TRUE,sep='\t')
+
+f3_riv_cl$cMINa <- f3_riv_cl$riv_Ber_freq - f3_riv_cl$riv_allo_freq
+f3_riv_cl$cMINb <- f3_riv_cl$riv_Ber_freq - f3_riv_cl$urb_allo_freq
+f3_riv_cl$f3prod <- f3_riv_cl$cMINa * f3_riv_cl$cMINb
+obs.f3 <- mean(f3_riv_cl$f3prod)
+obs.f3
+#[1] -0.001845929
+
+#Bootstrap the data
+
+#List the scaffolds in the data:
+scaff <- levels(f3_riv_cl$scaffold)
+#The number of scaffolds equals:
+n_scaff <- length(scaff)
+
+#Create an empty vector:
+f3_boots <- c(NULL)
+#Number of bootstraps:
+number_boot <- 2000
+
+#Choose how many times we want to bootstrap the data.  Say, 2000 times:
+for (boot_runs in 1:number_boot){
+
+#Randomly choose a scaffold:
+rand_scaff = sample(1:n_scaff,1,replace=T)
+#Choose the first scaffold, and place its data ina dataframe; this command also re-sets the dataframe when we run this multiple times:
+boot_data <- as.data.frame(f3_riv_cl[which(f3_riv_cl$scaffold == scaff[rand_scaff]),])
+
+
+#Now, repeat for the remaining n_scaff-1 scaffolds, and append these to boot_data - this creates a new, full dataset:
+for (i in 1:(n_scaff-1)){
+#Choose a random number
+rand_scaff = sample(1:n_scaff,1,replace=T)
+#Pull that scaffold from the dataset:
+boot_data_next <- as.data.frame(f3_riv_cl[which(f3_riv_cl$scaffold == scaff[rand_scaff]),])
+boot_data <- rbind(boot_data,boot_data_next)
+}
+
+#Calculate the mean f3 for this bootstrapped dataset:
+boot_mean <- mean(boot_data$f3prod)
+#Append this value to the list:
+f3_boots <- append(f3_boots,boot_mean)
+}
+
+
+#OK - now we want to know where in the distribution of f3_boots we find obs.f3:
+#Begin by making a vector of zeros, as long as the number of bootstraps we performed:
+zeros <- rep.int(0,number_boot)
+
+#Bind the zeros f3_boots:
+f3_boots <- cbind(f3_boots,zeros)
+#Test whether obs.f3 is smaller (more negative) than each bootstrapped f3:
+f3_boots[,2] <- ifelse(f3_boots[,1] > obs.f3,1,0)
+
+#This yields the p-value
+sum(f3_boots[,2])/nrow(f3_boots)
+
+#To get 90%CI's:
+
+f3_bootsCOL1 <- f3_boots[,1]
+
+f3_boots.sorted <- sort(f3_bootsCOL1)
+
+> f3_boots.sorted[1900]
+[1] 0.0001662158
+> f3_boots.sorted[100]
+[1] -0.003887166
+95% confidence intervals overlap 0.
+NOTE:  The first positive value lies at value 1873, so we're quite close to not overlapping zero!
+#Unsure how many rad-loci
+#Also, 2644 SNPs
+> n_scaff
+[1] 491
+#So, 491 scaffolds
+
+
+#I saved the output here:
+write.table(f3_boots.sorted, "/home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/f3_rivale_clean.txt", sep="\t")
+
+
+##################
+#Repeat this process for the 'unclean' data:
+#Include SNPs that are variable in Berwickshire but not the allopatric samples:
+f3_riv <- read.table("/home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/f3_rivale.txt",header=TRUE,sep='\t')
+
+f3_riv$cMINa <- f3_riv$riv_Ber_freq - f3_riv$riv_allo_freq
+f3_riv$cMINb <- f3_riv$riv_Ber_freq - f3_riv$urb_allo_freq
+f3_riv$f3prod <- f3_riv$cMINa * f3_riv$cMINb
+mean(f3_riv$f3prod)
+#[1] -0.000161982
+
+
+#List the scaffolds in the data:
+scaff <- levels(f3_riv$scaffold)
+#The number of scaffolds equals:
+n_scaff <- length(scaff)
+
+#Create an empty vector:
+f3_boots <- c(NULL)
+#Number of bootstraps:
+number_boot <- 2000
+
+#Choose how many times we want to bootstrap the data.  Say, 10,000 times:
+for (boot_runs in 1:number_boot){
+
+#Randomly choose a scaffold:
+rand_scaff = sample(1:n_scaff,1,replace=T)
+#Choose the first scaffold, and place its data in a dataframe; this command also re-sets the dataframe when we run this multiple times:
+boot_data <- as.data.frame(f3_riv[which(f3_riv$scaffold == scaff[rand_scaff]),])
+
+
+#Now, repeat for the remaining n_scaff-1 scaffolds, and append these to boot_data - this creates a new, full dataset:
+for (i in 1:(n_scaff-1)){
+#Choose a random number
+rand_scaff = sample(1:n_scaff,1,replace=T)
+#Pull that scaffold from the dataset:
+boot_data_next <- as.data.frame(f3_riv[which(f3_riv$scaffold == scaff[rand_scaff]),])
+boot_data <- rbind(boot_data,boot_data_next)
+}
+
+#Calculate the mean f3 for this bootstrapped dataset:
+boot_mean <- mean(boot_data$f3prod)
+#Append this value to the list:
+f3_boots <- append(f3_boots,boot_mean)
+}
+
+
+#OK - now we want to know where in the distribution of f3_boots we find obs.f3:
+#Begin by making a vector of zeros, as long as the number of bootstraps we performed:
+zeros <- rep.int(0,number_boot)
+
+#Bind the zeros f3_boots:
+f3_boots <- cbind(f3_boots,zeros)
+#Test whether obs.f3 is smaller (more negative) than each bootstrapped f3:
+f3_boots[,2] <- ifelse(f3_boots[,1] > obs.f3,1,0)
+
+#This yields the p-value
+sum(f3_boots[,2])/nrow(f3_boots)
+
+#To get 95%CI's:
+
+f3_bootsCOL1 <- f3_boots[,1]
+
+f3_boots.sorted <- sort(f3_bootsCOL1)
+
+90% CI's:
+f3_boots.sorted[1900]
+#[1] 0.001247059
+f3_boots.sorted[1000]
+#[1] -0.0001546968
+
+95% CI's:
+> f3_boots.sorted[1950]
+[1] 0.00157093
+> f3_boots.sorted[50]
+[1] -0.001682753
+
+
+#So, the mean and 95% CI's for the 'dirty' data are:  -0.000161982, with 95% CI's of:  -0.001682753 to 0.00157093
+Writing 837 loci to summary statistics file, '/home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/batch_1.sumstats.tsv'
+#Also, 3945 SNPs
+> n_scaff
+[1] 493
+#So, 493 scaffolds
+
+
+
+###########################
+#f3 analysis for urbanum:
+
+
+populations -P /PATH_TO_DATA -M ~/PATH_TO_DATA/popmap_BerwickshireSampleListPureRivaleUrbReducedUrbanum_UK_Only_Berwick_Urbanum.txt -b 1 -r 0.5 -p 3 -t 8 --ordered_export -W /PATH_TO_DATA/W_whitelist_HetAndFis_UK_SamplesFILTERED_ANALYSES_NoM.txt
+
+#Use the file, F3_urbanum.py, to organize the data.  Creates the output files:
+/home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/f3_urbanum.txt
+/home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/f3_urbanum_clean.txt
+
+
+#Now, use R to calculate f3:
+
+#Exclude SNPs that are variable in Berwickshire but not the allopatric samples:
+f3_urb_cl <- read.table("/home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/f3_urbanum_clean.txt",header=TRUE,sep='\t')
+
+f3_urb_cl$cMINa <- f3_urb_cl$urb_ber_freq - f3_urb_cl$riv_allo_freq
+f3_urb_cl$cMINb <- f3_urb_cl$urb_ber_freq - f3_urb_cl$urb_allo_freq
+f3_urb_cl$f3prod <- f3_urb_cl$cMINa * f3_urb_cl$cMINb
+obs.f3 <- mean(f3_urb_cl$f3prod)
+obs.f3
+[1] 0.0008843534
+
+##########
+
+#List the scaffolds in the data:
+scaff <- levels(f3_urb_cl$scaffold)
+#The number of scaffolds equals:
+n_scaff <- length(scaff)
+n_scaff
+#[1] 484
+
+#Create an empty vector:
+f3_boots <- c(NULL)
+#Number of bootstraps:
+number_boot <- 2000
+
+#Choose how many times we want to bootstrap the data.  Say, 10,000 times:
+for (boot_runs in 1:number_boot){
+
+#Randomly choose a scaffold:
+rand_scaff = sample(1:n_scaff,1,replace=T)
+#Choose the first scaffold, and place its data ina dataframe; this command also re-sets the dataframe when we run this multiple times:
+boot_data <- as.data.frame(f3_urb_cl[which(f3_urb_cl$scaffold == scaff[rand_scaff]),])
+
+
+#Now, repeat for the remaining n_scaff-1 scaffolds, and append these to boot_data - this creates a new, full dataset:
+for (i in 1:(n_scaff-1)){
+#Choose a random number
+rand_scaff = sample(1:n_scaff,1,replace=T)
+#Pull that scaffold from the dataset:
+boot_data_next <- as.data.frame(f3_urb_cl[which(f3_urb_cl$scaffold == scaff[rand_scaff]),])
+boot_data <- rbind(boot_data,boot_data_next)
+}
+
+#Calculate the mean f3 for this bootstrapped dataset:
+boot_mean <- mean(boot_data$f3prod)
+#Append this value to the list:
+f3_boots <- append(f3_boots,boot_mean)
+}
+
+
+#To get 90%CI's:
+
+f3_boots.sorted <- sort(f3_boots)
+
+> f3_boots.sorted[1900]
+[1] 0.002939083
+> f3_boots.sorted[100]
+[1] -0.001094982
+
+95% confidence intervals overlap 0.
+
+So, for urbanum with 'clean' data, we have a mean f3 of 0.0008843534, with 95% CI's of -0.001094982 to 0.002939083
+2650 SNPs on 484 scaffolds
+
+
+#############################
+#Repeat this with the 'unclean' data:
+
+
+
+#Now, use R to calculate f3:
+
+#Exclude SNPs that are variable in Berwickshire but not the allopatric samples:
+f3_urb <- read.table("/home/crispinjordan/AllWork/RAD_data/berwickshire_ddRAD/alignedSTACKS/stacksM6CorrAlt/f3_urbanum.txt",header=TRUE,sep='\t')
+
+f3_urb$cMINa <- f3_urb$urb_ber_freq - f3_urb$riv_allo_freq
+f3_urb$cMINb <- f3_urb$urb_ber_freq - f3_urb$urb_allo_freq
+f3_urb$f3prod <- f3_urb$cMINa * f3_urb$cMINb
+obs.f3 <- mean(f3_urb$f3prod)
+obs.f3
+#[1] 0.001737727
+
+##########
+
+#List the scaffolds in the data:
+scaff <- levels(f3_urb$scaffold)
+#The number of scaffolds equals:
+n_scaff <- length(scaff)
+n_scaff
+#[1] 484
+
+#Create an empty vector:
+f3_boots <- c(NULL)
+#Number of bootstraps:
+number_boot <- 2000
+
+#Choose how many times we want to bootstrap the data.  Say, 10,000 times:
+for (boot_runs in 1:number_boot){
+
+#Randomly choose a scaffold:
+rand_scaff = sample(1:n_scaff,1,replace=T)
+#Choose the first scaffold, and place its data ina dataframe; this command also re-sets the dataframe when we run this multiple times:
+boot_data <- as.data.frame(f3_urb[which(f3_urb$scaffold == scaff[rand_scaff]),])
+
+
+#Now, repeat for the remaining n_scaff-1 scaffolds, and append these to boot_data - this creates a new, full dataset:
+for (i in 1:(n_scaff-1)){
+#Choose a random number
+rand_scaff = sample(1:n_scaff,1,replace=T)
+#Pull that scaffold from the dataset:
+boot_data_next <- as.data.frame(f3_urb[which(f3_urb$scaffold == scaff[rand_scaff]),])
+boot_data <- rbind(boot_data,boot_data_next)
+}
+
+#Calculate the mean f3 for this bootstrapped dataset:
+boot_mean <- mean(boot_data$f3prod)
+#Append this value to the list:
+f3_boots <- append(f3_boots,boot_mean)
+}
+
+
+#To get 90% CI's:
+
+f3_boots.sorted <- sort(f3_boots)
+
+f3_boots.sorted[1900]
+[1] 0.003631816
+f3_boots.sorted[100]
+[1] -0.0002171847
+
+
+#To get 95% CI's:
+
+f3_boots.sorted[1950]
+[1] 0.003967958
+f3_boots.sorted[50]
+[1] -0.0005522832
+
+
+
+95% confidence intervals overlap 0.
+
+So, for urbanum with 'dirty' data, we have a mean f3 of 0.001737727, with 95% CI's of -0.0005522832 to 0.003967958
+2751 SNPs on 484 scaffolds
+
+
+
